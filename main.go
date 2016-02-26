@@ -1,14 +1,16 @@
 package main
 
 import (
-	iobeat "github.com/pysysops/iobeat/beat"
+	"os"
 
 	"github.com/elastic/beats/libbeat/beat"
+	"github.com/elastic/beats/topbeat/beater"
 )
 
-var Version = "1.0.0-beta1"
-var Name = "iobeat"
+var Name = "topbeat"
 
 func main() {
-	beat.Run(Name, Version, iobeat.NewIoBeat())
+	if err := beat.Run(Name, "", beater.New()); err != nil {
+		os.Exit(1)
+	}
 }

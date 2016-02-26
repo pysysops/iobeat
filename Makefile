@@ -1,10 +1,20 @@
-build:
-	go build
+BEATNAME=topbeat
+SYSTEM_TESTS=true
 
-.PHONY: test
-test:
-	go test ./...
+# Only crosscompile for linux because other OS'es use cgo.
+GOX_OS=linux
 
-.PHONY: clean
-clean:
-	rm iobeat || true
+include ../libbeat/scripts/Makefile
+
+.PHONY: install-cfg
+install-cfg:
+	cp etc/topbeat.template.json $(PREFIX)/topbeat.template.json
+	# linux
+	cp topbeat.yml $(PREFIX)/topbeat-linux.yml
+	# binary
+	cp topbeat.yml $(PREFIX)/topbeat-binary.yml
+	# darwin
+	cp topbeat.yml $(PREFIX)/topbeat-darwin.yml
+	# win
+	cp topbeat.yml $(PREFIX)/topbeat-win.yml
+

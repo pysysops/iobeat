@@ -1,13 +1,26 @@
-################### Phpfpmbeat Configuration Example ###########################
+################### Topbeat Configuration Example #########################
 
 ############################# Input ############################################
 input:
-  # List of URLs to PHP-FPM status page.
-  # E.g. "http://127.0.0.1:8080/status", "http://example.com/status"
-  # Defaults to ["http://127.0.0.1/status"].
-  urls:
-    - http://127.0.0.1/status
-
-  # Stats collection interval (in seconds).
-  # Defaults to 10s.
+  # In seconds, defines how often to read server statistics
   period: 10
+
+  # Regular expression to match the processes that are monitored
+  # By default, all the processes are monitored
+  procs: [".*"]
+
+  # Statistics to collect (all enabled by default)
+  stats:
+    # per system statistics, by default is true
+    system: true
+
+    # per process statistics, by default is true
+    proc: true
+
+    # file system information, by default is true
+    filesystem: true
+
+    # cpu usage per core, by default is false
+    cpu_per_core: false
+
+

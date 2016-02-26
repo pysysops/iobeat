@@ -1,16 +1,28 @@
-################### Phpfpmbeat Configuration Example #########################
+################### Topbeat Configuration Example #########################
 
 ############################# Input ############################################
 input:
-  # List of URLs to PHP-FPM status page.
-  # E.g. "http://127.0.0.1:8080/status", "http://example.com/status"
-  # Defaults to ["http://127.0.0.1/status"].
-  urls:
-    - http://127.0.0.1/status
-
-  # Stats collection interval (in seconds).
-  # Defaults to 10s.
+  # In seconds, defines how often to read server statistics
   period: 10
+
+  # Regular expression to match the processes that are monitored
+  # By default, all the processes are monitored
+  procs: [".*"]
+
+  # Statistics to collect (all enabled by default)
+  stats:
+    # per system statistics, by default is true
+    system: true
+
+    # per process statistics, by default is true
+    proc: true
+
+    # file system information, by default is true
+    filesystem: true
+
+    # cpu usage per core, by default is false
+    cpu_per_core: false
+
 
 ###############################################################################
 ############################# Libbeat Config ##################################
@@ -30,20 +42,42 @@ output:
     # IPv6 addresses should always be defined as: https://[2001:db8::1]:9200
     hosts: ["localhost:9200"]
 
-    # Optional protocol and basic auth credentials. These are deprecated.
+    # Optional protocol and basic auth credentials.
     #protocol: "https"
     #username: "admin"
     #password: "s3cr3t"
 
+    # Dictionary of HTTP parameters to pass within the url with index operations.
+    #parameters:
+      #param1: value1
+      #param2: value2
+
     # Number of workers per Elasticsearch host.
     #worker: 1
 
-    # Optional index name. The default is "beatname" and generates
-    # [beatname-]YYYY.MM.DD keys.
-    #index: "beatname"
+    # Optional index name. The default is "topbeat" and generates
+    # [topbeat-]YYYY.MM.DD keys.
+    #index: "topbeat"
+
+    # A template is used to set the mapping in Elasticsearch
+    # By default template loading is disabled and no template is loaded.
+    # These settings can be adjusted to load your own template or overwrite existing ones
+    #template:
+
+      # Template name. By default the template name is topbeat.
+      #name: "topbeat"
+
+      # Path to template file
+      #path: "topbeat.template.json"
+
+      # Overwrite existing template
+      #overwrite: false
 
     # Optional HTTP Path
     #path: "/elasticsearch"
+
+    # Proxy server url
+    #proxy_url: http://proxy:3128
 
     # The number of times a particular Elasticsearch index operation is attempted. If
     # the indexing operation doesn't succeed after this many retries, the events are
@@ -108,13 +142,16 @@ output:
     # Number of workers per Logstash host.
     #worker: 1
 
+    # Set gzip compression level.
+    #compression_level: 3
+
     # Optional load balance the events between the Logstash hosts
     #loadbalance: true
 
     # Optional index name. The default index name depends on the each beat.
     # For Packetbeat, the default is set to packetbeat, for Topbeat
     # top topbeat and for Filebeat to filebeat.
-    #index: beatname
+    #index: topbeat
 
     # Optional TLS. By default is off.
     #tls:
@@ -143,10 +180,10 @@ output:
   ### File as output
   #file:
     # Path to the directory where to save the generated files. The option is mandatory.
-    #path: "/tmp/beatname"
+    #path: "/tmp/topbeat"
 
-    # Name of the generated files. The default is `beatname` and it generates files: `beatname`, `beatname.1`, `beatname.2`, etc.
-    #filename: beatname
+    # Name of the generated files. The default is `topbeat` and it generates files: `topbeat`, `topbeat.1`, `topbeat.2`, etc.
+    #filename: topbeat
 
     # Maximum size in kilobytes of each file. When this size is reached, the files are
     # rotated. The default value is 10 MB.
@@ -191,6 +228,13 @@ shipper:
   # refresh_topology_freq. The default is 15 seconds.
   #topology_expire: 15
 
+  # Internal queue size for single events in processing pipeline
+  #queue_size: 1000
+
+  # Sets the maximum number of CPUs that can be executing simultaneously. The
+  # default is the number of logical CPUs available in the system.
+  #max_procs:
+
   # Configure local GeoIP database support.
   # If no paths are not configured geoip is disabled.
   #geoip:
@@ -202,7 +246,7 @@ shipper:
 ############################# Logging #########################################
 
 # There are three options for the log ouput: syslog, file, stderr.
-# Under Windos systems, the log files are per default sent to the file output,
+# Under Windows systems, the log files are per default sent to the file output,
 # under all other system per default to syslog.
 logging:
 
@@ -237,3 +281,5 @@ logging:
   # Sets log level. The default log level is error.
   # Available log levels are: critical, error, warning, info, debug
   #level: error
+
+

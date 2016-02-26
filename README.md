@@ -1,67 +1,154 @@
-[![Build Status](https://travis-ci.org/kozlice/phpfpmbeat.svg?branch=master)](https://travis-ci.org/kozlice/phpfpmbeat)
+# Topbeat
 
-# iobeat
+Topbeat is the [Beat](https://www.elastic.co/products/beats) used for
+server monitoring. It is a lightweight agent that installed on your servers,
+reads periodically system wide and per process CPU and memory statistics and indexes them in
+Elasticsearch.
 
-The [Beat](https://www.elastic.co/products/beats) for PHP-FPM monitoring.
+## Documentation
 
-As Go doesn't currently provide possibility to connect directly to FPM via FastCGI, PHP-FPM must be configured to show its status via some webserver. Sample for Nginx can be found [here](https://easyengine.io/tutorials/php/fpm-status-page/).
+You can find the documentation on the [elastic.co](https://www.elastic.co/guide/en/beats/topbeat/current/index.html) website.
 
-### ElasticSearch template
+## Exported fields
 
-To create template for phpfpmbeat (using cURL):
+Topbeat exports the following types of JSON documents based on the statistics
+that it's configured to capture:
 
-    curl -XPUT 'http://localhost:9200/_template/phpfpmbeat' -d@etc/phpfpmbeat.template.json
+- `type: system` for system-wide statistics
+- `type: process` for per-process statistics
+- `type: filesystem` for disk usage statistics
 
-### Build & run
+By default, Topbeat captures all three types of statistics. As you can see in
+the following examples, the content of the JSON document varies depending on the
+type.
 
-    # Build
-    export GO15VENDOREXPERIMENT=1
-    GOPATH=<your go path> make
+### System-Wide Statistics
 
-    # Test
-    GOPATH=<your go path> make test
+Topbeat exports one JSON document for the system. For example:
 
-    # Run
-    ./phpfpmbeat -c etc/phpfpmbeat.yml
+<pre>
+{
+  "@timestamp": "2016-02-01T20:16:49.480Z",
+  "beat": {
+    "hostname": "MacBook-Pro.local",
+    "name": "MacBook-Pro.local"
+  },
+  "count": 1,
+  "cpu": {
+    "user": 2985331,
+    "user_p": 0,
+    "nice": 0,
+    "system": 1727403,
+    "system_p": 0,
+    "idle": 25915908,
+    "iowait": 0,
+    "irq": 0,
+    "softirq": 0,
+    "steal": 0
+  },
+  "cpu0": {
+    "user": 2985331,
+    "user_p": 0,
+    "nice": 0,
+    "system": 1727403,
+    "system_p": 0,
+    "idle": 25915908,
+    "iowait": 0,
+    "irq": 0,
+    "softirq": 0,
+    "steal": 0
+  },
+  "load": {
+    "load1": 1.52392578125,
+    "load5": 1.79736328125,
+    "load15": 1.98291015625
+  },
+  "mem": {
+    "total": 17179869184,
+    "used": 8868311040,
+    "free": 8311558144,
+    "used_p": 0.52,
+    "actual_used": 8355057664,
+    "actual_free": 8824811520,
+    "actual_used_p": 0.49
+  },
+  "swap": {
+    "total": 2147483648,
+    "used": 736624640,
+    "free": 1410859008,
+    "used_p": 0.34
+  },
+  "type": "system"
+}
+</pre>
 
-### Exported fields
+If you set `cpu_per_core: true`, the output also includes CPU usage per core
+statistics grouped under `cpus`.
 
-Phpfpmbeat exports all pool information fields provided by PHP-FPM, except FPM start time. To make `slow_requests` counter work, [enable `request_slow_log` feature](https://easyengine.io/tutorials/php/fpm-slow-log/) in you FPM config.
+### Per-Process Statistics
 
-Document sample:
+Topbeat exports one document per process. For example:
 
-    {
-      "@timestamp": "2015-11-28T22:12:04.367Z",
-      "beat": {
-        "hostname": "Valentins-iMac.local",
-        "name": "Valentins-iMac.local"
-      },
-      "count": 1,
-      "phpfpm": {
-        "accepted_conn": 218,
-        "active_processes": 1,
-        "idle_processes": 1,
-        "listen_queue": 0,
-        "listen_queue_len": 128,
-        "max_active_processes": 1,
-        "max_children_reached": 0,
-        "max_listen_queue": 0,
-        "pool": "www",
-        "process_manager": "dynamic",
-        "slow_requests": 0,
-        "start_since": 1176,
-        "total_processes": 2
-      },
-      "type": "phpfpm"
-    }
+<pre>
+{
+  "@timestamp": "2016-02-01T20:16:49.499Z",
+  "beat": {
+    "hostname": "MacBook-Pro.local",
+    "name": "MacBook-Pro.local"
+  },
+  "count": 1,
+  "proc": {
+    "cpu": {
+      "user": 1,
+      "total_p": 0,
+      "system": 1,
+      "total": 2,
+      "start_time": "15:59"
+    },
+    "mem": {
+      "size": 2491260928,
+      "rss": 774144,
+      "rss_p": 0,
+      "share": 0
+    },
+    "name": "less",
+    "pid": 20366,
+    "ppid": 10392,
+    "state": "running"
+  },
+  "type": "process"
+}
+</pre>
 
-There is no support for per-process info for now.
+### Disk Usage Statistics
 
-## Thanks to
+Topbeat exports one document per mount point. For example:
 
-- Elastic for their Beat creation tutorial
-- [mrkschan](https://github.com/mrkschan) for his [nginxbeat](https://github.com/mrkschan/nginxbeat), which I used as a prototype
+<pre>
+{
+  "@timestamp": "2016-02-01T20:16:49.499Z",
+  "beat": {
+    "hostname": "MacBook-Pro.local",
+    "name": "MacBook-Pro.local"
+  },
+  "count": 1,
+  "fs": {
+    "device_name": "devfs",
+    "total": 198656,
+    "used": 198656,
+    "used_p": 1,
+    "free": 0,
+    "avail": 0,
+    "files": 677,
+    "free_files": 0,
+    "mount_point": "/dev"
+  },
+  "type": "filesystem"
+}
+</pre>
 
-## Contribution
+## Elasticsearch template
 
-Feel free to fork, create merge requests and open issues. I had no experience with Go language previously, so there should be a lot of things to improve.
+To apply the Topbeat template:
+
+    curl -XPUT 'http://localhost:9200/_template/topbeat' -d@etc/topbeat.template.json

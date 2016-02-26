@@ -1,4 +1,4 @@
-package collector
+package beater
 
 import (
 	"bufio"
@@ -9,10 +9,22 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"encoding/json"
+
+	"github.com/elastic/beats/libbeat/beat"
+	"github.com/elastic/beats/libbeat/cfgfile"
+	"github.com/elastic/beats/libbeat/common"
+	"github.com/elastic/beats/libbeat/logp"
+	"github.com/elastic/beats/libbeat/publisher"
 )
 
-type IoStats struct {
+type Iobeat struct {
+	period           time.Duration
+	IbConfig         ConfigSettings
+	events           publisher.Client
+	done chan struct{}
+}
+
+type DiskStats struct {
 	Major             int
 	Minor             int
 	Device            string
@@ -29,21 +41,82 @@ type IoStats struct {
 	MsecWeightedTotal uint64 // Measure of recent I/O completion time and backlog.
 }
 
-type IoCollector struct{}
-
-func NewIoCollector() *IoCollector {
-	return &IoCollector{}
+func New() *Iobeat {
+	return &Iobeat{}
 }
 
-func (c *IoCollector) Collect() (map[string]interface{}, error) {
-	var (
-		err error
-		s IoStats
-		v map[string]interface{}
-	)
+func (ib *Iobeat) Config(b *beat.Beat) error {
+
+	err := cfgfile.Read(&ib.IbConfig, "")
+	if err != nil {
+		logp.Err("Error reading configuration file: %v", err)
+		return err
+	}
+
+	if ib.IoConfig.Input.Period != nil {
+		ib.period = time.Duration(*tb.TbConfig.Input.Period) * time.Second
+	} else {
+		ib.period = 10 * time.Second
+	}
+
+	logp.Debug("iobeat", "File system statistics %t\n", tb.fsStats)
+
+	return nil
+}
+
+func (ib *Iobeat) Setup(b *beat.Beat) error {
+	ib.events = b.Events
+	ib.done = make(chan struct{})
+	return nil
+}
+
+func (i *Iobeat) Run(b *beat.Beat) error {
+	var err error
+
+	ticker := time.NewTicker(i.period)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-i.done:
+			return nil
+		case <-ticker.C:
+		}
+
+		timerStart := time.Now()
+
+		err = i.exportIoStats()
+		if err != nil {
+			logp.Err("Error reading io stats: %v", err)
+			break
+		}
+
+		timerEnd := time.Now()
+		duration := timerEnd.Sub(timerStart)
+		if duration.Nanoseconds() > t.period.Nanoseconds() {
+			logp.Warn("Ignoring tick(s) due to processing taking longer than one period")
+		}
+	}
+
+	return err
+}
+
+func (ib *Iobeat) Cleanup(b *beat.Beat) error {
+	return nil
+}
+
+func (i *Iobeat) Stop() {
+	close(i.done)
+}
+
+func (i *Iobeat) exportIoStats() error {
+	i.events.PublishEvents(collectIoStats())
+	return nil
+}
+
+func collectIoStats() []common.MapStr {
 
 	proc_diskstats := "/proc/diskstats"
-
 	if !filetool.IsExist(proc_diskstats) {
 		return nil, fmt.Errorf("%s not exists", proc_diskstats)
 	}
@@ -53,9 +126,7 @@ func (c *IoCollector) Collect() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	ret := make([]*IoStats, 0)
-
-	reader := bufio.NewReader(bytes.NewBuffer(contents))
+	events := make([]common.MapStr, 0, len(fss))
 
 	for {
 		line, _, err := reader.ReadLine()
@@ -79,8 +150,8 @@ func (c *IoCollector) Collect() (map[string]interface{}, error) {
 			continue
 		}
 
-		item := &IoStats{}
 
+		item := &DiskStats{}
 		for i := 0; i < size; i++ {
 			if item.Major, err = strconv.Atoi(fields[0]); err != nil {
 				return nil, err
@@ -135,20 +206,32 @@ func (c *IoCollector) Collect() (map[string]interface{}, error) {
 			if item.MsecWeightedTotal, err = strconv.ParseUint(fields[13], 10, 64); err != nil {
 				return nil, err
 			}
+
 		}
-		v += map[string]interface{}{
-			strings.Join(append(strings.Fields(item.Device), "read_requests"), ""):      item.ReadRequests,
-			strings.Join(append(strings.Fields(item.Device), "read_merged"), ""):         item.ReadMerged,
-			strings.Join(append(strings.Fields(item.Device), "read_sectors"), ""):        item.ReadSectors,
-			strings.Join(append(strings.Fields(item.Device), "msec_read"), ""):           item.MsecRead,
-			strings.Join(append(strings.Fields(item.Device), "write_requests"), ""):      item.WriteRequests,
-			strings.Join(append(strings.Fields(item.Device), "write_merged"), ""):        item.WriteMerged,
-			strings.Join(append(strings.Fields(item.Device), "write_sectors"), ""):       item.WriteSectors,
-			strings.Join(append(strings.Fields(item.Device), "msec_write"), ""):          item.MsecWrite,
-			strings.Join(append(strings.Fields(item.Device), "ios_in_progress"), ""):     item.IosInProgress,
-			strings.Join(append(strings.Fields(item.Device), "msec_total"), ""):          item.MsecTotal,
-			strings.Join(append(strings.Fields(item.Device), "msec_weighted_total"), ""): item.MsecWeightedTotal,
+
+		event := common.MapStr{
+			"@timestamp": common.Time(time.Now()),
+			"type":       "iostats",
+			"count":      1,
+			"device": common.MapStr{
+				"major":                item.Major,
+				"minor":                item.Minor,
+				"device":               item.Device,
+				"read_requests":        item.ReadRequests,
+				"read_merged":          item.ReadMerged,
+				"read_sectors":         item.ReadSectors,
+				"msec_read":            item.MsecRead,
+				"write_requests":       item.WriteRequests,
+				"write_merged":         item.WriteMerged,
+				"write_sectors":        item.WriteSectors,
+				"msec_write":           item.MsecWrite,
+				"ios_in_progress":      item.IosInProgress,
+				"msec_total":           item.MsecTotal,
+				"msec_weighted_total":  item.MsecWeightedTotal,
+			},
 		}
+
+		events = append(events, event)
 	}
-	return v, nil
+	return events
 }
