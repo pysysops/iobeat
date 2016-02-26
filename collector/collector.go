@@ -138,16 +138,16 @@ func (c *IoCollector) Collect() (map[string]interface{}, error) {
 		}
 		v += map[string]interface{}{
 			strings.Join(append(item.Device, "read_requests"), ""):      item.ReadRequests,
-			strings.Join(append(item.Device, "read_merged", ""):         item.ReadMerged,
-			strings.Join(append(item.Device, "read_sectors", ""):        item.ReadSectors,
-			strings.Join(append(item.Device, "msec_read", ""):           item.MsecRead,
-			strings.Join(append(item.Device, "write_requests", ""):      item.WriteRequests,
-			strings.Join(append(item.Device, "write_merged", ""):        item.WriteMerged,
-			strings.Join(append(item.Device, "write_sectors", ""):       item.WriteSectors,
-			strings.Join(append(item.Device, "msec_write", ""):          item.MsecWrite,
-			strings.Join(append(item.Device, "ios_in_progress", ""):     item.IosInProgress,
-			strings.Join(append(item.Device, "msec_total", ""):          item.MsecTotal,
-			strings.Join(append(item.Device, "msec_weighted_total", ""): item.MsecWeightedTotal,
+			strings.Join(append(item.Device, "read_merged"), ""):         item.ReadMerged,
+			strings.Join(append(item.Device, "read_sectors"), ""):        item.ReadSectors,
+			strings.Join(append(item.Device, "msec_read"), ""):           item.MsecRead,
+			strings.Join(append(item.Device, "write_requests"), ""):      item.WriteRequests,
+			strings.Join(append(item.Device, "write_merged"), ""):        item.WriteMerged,
+			strings.Join(append(item.Device, "write_sectors"), ""):       item.WriteSectors,
+			strings.Join(append(item.Device, "msec_write"), ""):          item.MsecWrite,
+			strings.Join(append(item.Device, "ios_in_progress"), ""):     item.IosInProgress,
+			strings.Join(append(item.Device, "msec_total"), ""):          item.MsecTotal,
+			strings.Join(append(item.Device, "msec_weighted_total"), ""): item.MsecWeightedTotal,
 		}
 	}
 	return v, nil
